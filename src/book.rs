@@ -1,5 +1,5 @@
 use std::collections::{HashMap, HashSet};
-
+use serde::{Serialize, Deserialize};
 use anyhow::{anyhow, Result};
 use uuid::Uuid;
 
@@ -15,7 +15,7 @@ pub struct OrderBook {
     order_removed_set: HashSet<Uuid>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum OrderType {
     Bid,
     Ask,
@@ -30,6 +30,19 @@ struct MatchOutcome {
     remaining_quantity: u32,
     full_order: Vec<(Uuid, OrderKey)>,
     partial_order: Option<PartialOrderMatch>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct L2Entry {
+    price: u32,
+    total_quantity: u32,
+    num_orders: usize,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct L2Book {
+    bid: Vec<L2Entry>,
+    ask: Vec<L2Entry>,
 }
 
 impl OrderBook {
@@ -87,8 +100,10 @@ impl OrderBook {
 
             match &match_outcome.partial_order {
                 Some(partial_order) => {
-                    let partial_filled_order = tree_to_remove.get_order(&partial_order.order_key).unwrap();
-                    let partial_quantity = partial_filled_order.quantity() - partial_order.remaining_quantity;
+                    let partial_filled_order =
+                        tree_to_remove.get_order(&partial_order.order_key).unwrap();
+                    let partial_quantity =
+                        partial_filled_order.quantity() - partial_order.remaining_quantity;
                     println!(
                         "{resting_order_type:?} -> ID: {} Qty: {}, Price: {}",
                         partial_filled_order.id(),
@@ -230,7 +245,30 @@ impl OrderBook {
         Err(anyhow!("Order annot be found"))
     }
 
-    pub fn view_book_l2(&self) {
-        todo!()
+    pub fn view_book_l2(&self) -> L2Book {
+        let mut bid_entries = Vec::new();
+
+        for (_, price_node) in self.bid_tree.iter() {
+            bid_entries.push(L2Entry {
+                price: price_node.price(),
+                total_quantity: price_node.total_quantity(),
+                num_orders: price_node.num_orders(),
+            })
+        }
+
+        let mut ask_entries = Vec::new();
+
+        for (_, price_node) in self.ask_tree.iter() {
+            ask_entries.push(L2Entry {
+                price: price_node.price(),
+                total_quantity: price_node.total_quantity(),
+                num_orders: price_node.num_orders(),
+            })
+        }
+
+        L2Book {
+            bid: bid_entries,
+            ask: ask_entries,
+        }
     }
 }

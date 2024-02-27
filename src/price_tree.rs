@@ -22,6 +22,10 @@ impl PriceNode {
         self.total_quantity
     }
 
+    pub fn num_orders(&self) -> usize {
+        self.linked_list.len()
+    }
+
     pub fn iter(&self) -> PriceNodeIterator {
         PriceNodeIterator {
             linked_list_iter: self.linked_list.iter(),
