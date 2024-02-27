@@ -75,6 +75,7 @@ impl OrderBook {
         // Send orders to clearing house and remove from book
         // These prints imitates order sent to clearing house
         if match_outcome.remaining_quantity != order.quantity() {
+            println!("== Clearing House Orders ==");
             let filled_quantity = order.quantity() - match_outcome.remaining_quantity;
             println!(
                 "{order_type:?} -> ID: {} Qty: {}, Price: {}",
@@ -113,6 +114,7 @@ impl OrderBook {
                 }
                 None => {}
             }
+            println!("== End of Orders ==");
         }
         // End of clearing house log
         for (filled_order_id, key) in &match_outcome.full_order {
