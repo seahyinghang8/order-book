@@ -12,10 +12,10 @@ pub struct OrderBook {
     bid_tree: PriceTree,
     ask_tree: PriceTree,
     order_id_map: HashMap<Uuid, (OrderType, OrderKey)>,
-    order_removed_set: HashSet<Uuid>
+    order_removed_set: HashSet<Uuid>,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub enum OrderType {
     Bid,
     Ask,
@@ -55,25 +55,62 @@ impl OrderBook {
         let mut order = Order::new(price, quantity);
         let match_outcome = Self::find_matching_orders(&self, &order, &order_type);
 
-        // Send orders to clearing house and remove from book
-        // TODO -> Send order to clearing house
-
         let tree_to_remove = match order_type {
             OrderType::Ask => &mut self.bid_tree,
             OrderType::Bid => &mut self.ask_tree,
         };
+        // Send orders to clearing house and remove from book
+        // These prints imitates order sent to clearing house
+        if match_outcome.remaining_quantity != order.quantity() {
+            let filled_quantity = order.quantity() - match_outcome.remaining_quantity;
+            println!(
+                "{order_type:?} -> ID: {} Qty: {}, Price: {}",
+                order.id(),
+                filled_quantity,
+                order.price()
+            );
 
-        for (filled_order_id, key) in match_outcome.full_order {
+            let resting_order_type = match order_type {
+                OrderType::Ask => OrderType::Bid,
+                OrderType::Bid => OrderType::Ask,
+            };
+
+            for (_, order_key) in &match_outcome.full_order {
+                let filled_order = tree_to_remove.get_order(order_key).unwrap();
+                println!(
+                    "{resting_order_type:?} -> ID: {} Qty: {}, Price: {}",
+                    filled_order.id(),
+                    filled_order.quantity(),
+                    filled_order.price()
+                );
+            }
+
+            match &match_outcome.partial_order {
+                Some(partial_order) => {
+                    let partial_filled_order = tree_to_remove.get_order(&partial_order.order_key).unwrap();
+                    let partial_quantity = partial_filled_order.quantity() - partial_order.remaining_quantity;
+                    println!(
+                        "{resting_order_type:?} -> ID: {} Qty: {}, Price: {}",
+                        partial_filled_order.id(),
+                        partial_quantity,
+                        partial_filled_order.price()
+                    );
+                }
+                None => {}
+            }
+        }
+        // End of clearing house log
+        for (filled_order_id, key) in &match_outcome.full_order {
             tree_to_remove.remove_order(&key).unwrap();
             self.order_id_map.remove(&filled_order_id);
-            self.order_removed_set.insert(filled_order_id);
+            self.order_removed_set.insert(*filled_order_id);
         }
 
-        match match_outcome.partial_order {
+        match &match_outcome.partial_order {
             Some(partial_order) => {
                 tree_to_remove
                     .update_order_quantity(
-                        partial_order.order_key,
+                        &partial_order.order_key,
                         partial_order.remaining_quantity,
                     )
                     .unwrap();
@@ -88,7 +125,7 @@ impl OrderBook {
         if order.quantity() > 0 {
             let tree_to_add = match order_type {
                 OrderType::Ask => &mut self.ask_tree,
-                OrderType::Bid => &mut self.bid_tree
+                OrderType::Bid => &mut self.bid_tree,
             };
             let order_key = tree_to_add.insert_order(order);
             self.order_id_map.insert(order_id, (order_type, order_key));
@@ -182,7 +219,7 @@ impl OrderBook {
         if let Some((order_type, order_key)) = self.order_id_map.get(&order_id) {
             let tree_to_remove = match order_type {
                 OrderType::Ask => &mut self.ask_tree,
-                OrderType::Bid => &mut self.bid_tree
+                OrderType::Bid => &mut self.bid_tree,
             };
 
             tree_to_remove.remove_order(order_key).unwrap();

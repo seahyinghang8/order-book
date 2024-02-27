@@ -180,6 +180,16 @@ impl<T> SlabLinkedList<T> {
         }
     }
 
+    // TODO: Needs testing
+    pub fn get(&mut self, node_id: usize) -> Option<&T> {
+        match self.slab.get(node_id) {
+            Some(node) => {
+                Some(&node.value)
+            }
+            None => None,
+        }
+    }
+
     pub fn iter(&self) -> SlabLinkedListIter<T> {
         SlabLinkedListIter {
             next_id: self.front_id,

@@ -1,6 +1,6 @@
+use anyhow::{anyhow, Ok, Result};
 use slab::Slab;
 use std::collections::BTreeMap;
-use anyhow::{anyhow, Ok, Result};
 
 use crate::{
     linked_list::{SlabLinkedList, SlabLinkedListIter},
@@ -123,18 +123,24 @@ impl PriceTree {
     }
 
     // TODO: Needs testing
-    pub fn update_order_quantity(&mut self, key: OrderKey, quantity: u32) -> Result<()> {
+    pub fn update_order_quantity(&mut self, key: &OrderKey, quantity: u32) -> Result<()> {
         match self.slab.get_mut(key.price_node_id) {
-            Some(price_node) => {
-                match price_node.linked_list.get_mut(key.linked_list_node_id) {
-                    Some(order) => {
-                        order.update_quantity(quantity);
-                        Ok(())
-                    }
-                    None => Err(anyhow!("Order does not exist in linked list")),
+            Some(price_node) => match price_node.linked_list.get_mut(key.linked_list_node_id) {
+                Some(order) => {
+                    order.update_quantity(quantity);
+                    Ok(())
                 }
-            }
+                None => Err(anyhow!("Order does not exist in linked list")),
+            },
             None => Err(anyhow!("Order does not exist in tree")),
+        }
+    }
+
+    // TODO: Needs testing
+    pub fn get_order(&mut self, key: &OrderKey) -> Option<&Order> {
+        match self.slab.get_mut(key.price_node_id) {
+            Some(price_node) => price_node.linked_list.get(key.linked_list_node_id),
+            None => None,
         }
     }
 
