@@ -101,7 +101,7 @@ impl PriceTree {
         }
     }
 
-    pub fn remove_order(&mut self, key: OrderKey) -> Result<()> {
+    pub fn remove_order(&mut self, key: &OrderKey) -> Result<()> {
         match self.slab.get_mut(key.price_node_id) {
             Some(price_node) => {
                 match price_node.linked_list.remove(key.linked_list_node_id) {
@@ -238,7 +238,7 @@ mod tests {
         let order = Order::new(200, 8);
         let key = price_tree.insert_order(order);
 
-        assert_eq!(price_tree.remove_order(key).unwrap(), ());
+        assert_eq!(price_tree.remove_order(&key).unwrap(), ());
         assert_eq!(price_tree.slab.len(), 0);
     }
 

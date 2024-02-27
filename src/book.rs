@@ -15,6 +15,7 @@ pub struct OrderBook {
     order_removed_set: HashSet<Uuid>
 }
 
+#[derive(Clone, Copy)]
 pub enum OrderType {
     Bid,
     Ask,
@@ -63,7 +64,7 @@ impl OrderBook {
         };
 
         for (filled_order_id, key) in match_outcome.full_order {
-            tree_to_remove.remove_order(key).unwrap();
+            tree_to_remove.remove_order(&key).unwrap();
             self.order_id_map.remove(&filled_order_id);
             self.order_removed_set.insert(filled_order_id);
         }
@@ -173,27 +174,20 @@ impl OrderBook {
         }
     }
 
-    fn add_order_to_tree(&self, order_type: &OrderType, order: Order) {
-        let order_id = order.id();
-        let tree_to_add = match order_type {
-                OrderType::Ask => &mut self.ask_tree,
-                OrderType::Bid => &mut self.bid_tree
-            };
-            let order_key = tree_to_add.insert_order(order);
-
-        self.order_id_map.insert(order_id, (order_type, order_key));
-    }
-
-    pub fn cancel_order(&self, order_id: Uuid) -> Result<()> {
+    pub fn cancel_order(&mut self, order_id: Uuid) -> Result<()> {
         if self.order_removed_set.contains(&order_id) {
             return Err(anyhow!("Order is already removed from the book"));
         }
 
-        if let Some(order_key) = self.order_id_map.get(&order_id) {
+        if let Some((order_type, order_key)) = self.order_id_map.get(&order_id) {
             let tree_to_remove = match order_type {
                 OrderType::Ask => &mut self.ask_tree,
                 OrderType::Bid => &mut self.bid_tree
             };
+
+            tree_to_remove.remove_order(order_key).unwrap();
+            self.order_id_map.remove(&order_id);
+            self.order_removed_set.insert(order_id);
         }
 
         Err(anyhow!("Order annot be found"))
