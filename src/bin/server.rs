@@ -7,7 +7,6 @@ use tokio::{
 
 use order_book::{resp::Response, req::Request, book::OrderBook, wire::{read_msg, write_msg}};
 
-
 async fn process_socket(mut socket: TcpStream, book: Arc<RwLock<OrderBook>>) {
     loop {
         // Deserialize incoming request
