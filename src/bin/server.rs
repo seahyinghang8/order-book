@@ -1,48 +1,12 @@
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::{
     net::{TcpListener, TcpStream},
     sync::RwLock,
 };
-use wire::{read_msg, write_msg};
 
-use book::{L2Book, OrderBook, OrderType};
-use uuid::Uuid;
+use order_book::{resp::Response, req::Request, book::OrderBook, wire::{read_msg, write_msg}};
 
-mod book;
-mod linked_list;
-mod order;
-mod price_tree;
-mod wire;
-
-#[derive(Serialize, Deserialize, Debug)]
-struct PlaceOrderArgs {
-    order_type: OrderType,
-    price: u32,
-    quantity: u32,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct CancelOrderArgs {
-    order_id: Uuid,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-enum Request {
-    PlaceOrder(PlaceOrderArgs),
-    CancelOrder(CancelOrderArgs),
-    ViewL2Book,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-enum Response {
-    L2BookOk(L2Book),
-    CancelOk,
-    CancelErr,
-    PlaceOk(Uuid),
-    PlacErr,
-}
 
 async fn process_socket(mut socket: TcpStream, book: Arc<RwLock<OrderBook>>) {
     loop {
