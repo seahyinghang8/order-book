@@ -68,6 +68,6 @@ async fn process_request(request: Request) -> Result<()> {
     let mut socket = TcpStream::connect("127.0.0.1:8080").await?;
     write_msg(&mut socket, &request).await.unwrap();
     let response: Response = read_msg(&mut socket).await.unwrap();
-    println!("Response: {:?}", response);
+    println!("Response: {:#?}", response);
     Ok(())
 }

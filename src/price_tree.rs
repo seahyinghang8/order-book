@@ -45,6 +45,7 @@ impl<'a> Iterator for PriceNodeIterator<'a> {
     }
 }
 
+#[derive(Debug)]
 pub struct OrderKey {
     price_node_id: usize,
     linked_list_node_id: usize,
@@ -60,6 +61,7 @@ impl OrderKey {
 }
 
 pub struct PriceTree {
+    // tree: BTreeMap<u32, PriceNode>
     tree: BTreeMap<u32, usize>,
     slab: Slab<PriceNode>,
 }
@@ -131,6 +133,9 @@ impl PriceTree {
         match self.slab.get_mut(key.price_node_id) {
             Some(price_node) => match price_node.linked_list.get_mut(key.linked_list_node_id) {
                 Some(order) => {
+                    let original_quantity = order.quantity();
+                    let delta = original_quantity - quantity;
+                    price_node.total_quantity -= delta;
                     order.update_quantity(quantity);
                     Ok(())
                 }

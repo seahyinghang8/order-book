@@ -1,6 +1,6 @@
-use std::collections::{HashMap, HashSet};
-use serde::{Serialize, Deserialize};
 use anyhow::{anyhow, Result};
+use serde::{Deserialize, Serialize};
+use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
 
 use crate::{
@@ -21,11 +21,13 @@ pub enum OrderType {
     Ask,
 }
 
+#[derive(Debug)]
 struct PartialOrderMatch {
     order_key: OrderKey,
     remaining_quantity: u32,
 }
 
+#[derive(Debug)]
 struct MatchOutcome {
     remaining_quantity: u32,
     full_order: Vec<(Uuid, OrderKey)>,
@@ -117,12 +119,15 @@ impl OrderBook {
             println!("== End of Orders ==");
         }
         // End of clearing house log
+
+        // Removing orders from tree
         for (filled_order_id, key) in &match_outcome.full_order {
             tree_to_remove.remove_order(&key).unwrap();
             self.order_id_map.remove(&filled_order_id);
             self.order_removed_set.insert(*filled_order_id);
         }
 
+        // Updating orders to tree
         match &match_outcome.partial_order {
             Some(partial_order) => {
                 tree_to_remove
@@ -164,37 +169,20 @@ impl OrderBook {
             OrderType::Bid => self.ask_tree.iter(),
         };
 
-        loop {
-            if let Some((price_node_id, price_node_iter)) = match order_type {
-                OrderType::Ask => {
-                    match tree_iter.next() {
-                        // Continue if remaining order price >= asking price
-                        Some((price_node_id, price_node)) => {
-                            if price_node.price() >= incoming_order.price() {
-                                Some((price_node_id, price_node.iter()))
-                            } else {
-                                None
-                            }
-                        }
-                        None => None,
-                    }
-                }
-                OrderType::Bid => {
-                    match tree_iter.next_back() {
-                        // Continue if remaining order price <= bidding price
-                        Some((price_node_id, price_node)) => {
-                            if price_node.price() <= incoming_order.price() {
-                                Some((price_node_id, price_node.iter()))
-                            } else {
-                                None
-                            }
-                        }
-                        None => None,
-                    }
-                }
-            } {
+        let mut tree_next = || match order_type {
+            OrderType::Ask => tree_iter.next_back(),
+            OrderType::Bid => tree_iter.next(),
+        };
+
+        let price_valid = |existing_order_price: u32| match order_type {
+            OrderType::Ask => existing_order_price >= incoming_order.price(),
+            OrderType::Bid => existing_order_price <= incoming_order.price(),
+        };
+
+        while let Some((price_node_id, price_node)) = tree_next() {
+            if price_valid(price_node.price()) {
                 // Iterate through orders from oldest to newest
-                for (linked_list_node_id, existing_order) in price_node_iter {
+                for (linked_list_node_id, existing_order) in price_node.iter() {
                     let order_key = OrderKey::new(price_node_id, linked_list_node_id);
                     if existing_order.quantity() <= remaining_quantity {
                         full_matching_order.push((existing_order.id(), order_key));
@@ -216,8 +204,6 @@ impl OrderBook {
                         };
                     }
                 }
-            } else {
-                break;
             }
         }
 
@@ -242,9 +228,11 @@ impl OrderBook {
             tree_to_remove.remove_order(order_key).unwrap();
             self.order_id_map.remove(&order_id);
             self.order_removed_set.insert(order_id);
-        }
 
-        Err(anyhow!("Order annot be found"))
+            Ok(())
+        } else {
+            Err(anyhow!("Order cannot be found"))
+        }
     }
 
     pub fn view_book_l2(&self) -> L2Book {

@@ -1,6 +1,7 @@
 use std::time::Instant;
 use uuid::Uuid;
 
+#[derive(Debug)]
 pub struct Order {
     id: Uuid,
     quantity: u32,

@@ -159,7 +159,7 @@ impl<T> SlabLinkedList<T> {
                             let next_node = &mut self.slab[next_id];
                             next_node.prev_id = Some(prev_id);
 
-                            self.len += 1;
+                            self.len -= 1;
                             Some(removed_node.value)
                         }
                         None => None,
